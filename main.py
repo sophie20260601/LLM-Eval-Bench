@@ -47,7 +47,13 @@ if not os.path.exists(DATA_FILE):
 with open(DATA_FILE, "r", encoding="utf-8") as f:
     test_cases = json.load(f)
 
-print(f"[数据] 已加载 {len(test_cases)} 道测试题")
+# CI 环境只跑前 10 题（30 个评估任务 ≈ 25 分钟），本地仍跑全量 30 题
+is_ci = os.getenv("GITHUB_ACTIONS") == "true"
+if is_ci:
+    test_cases = test_cases[:10]
+    print(f"[CI 模式] 已加载前 {len(test_cases)} 道测试题（全量 30 题仅限本地运行）")
+else:
+    print(f"[数据] 已加载 {len(test_cases)} 道测试题")
 
 # ─────────────────────────────────────────────────
 # 2. 初始化 DeepSeek LLM
