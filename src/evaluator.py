@@ -102,7 +102,14 @@ def run_evaluation(dataset: Dataset, llm, embeddings) -> dict:
 
     # 限制并发 worker 数量，避免 DeepSeek API 超时
     # 默认 max_workers=16 会导致 15 个任务同时砸向 API
-    run_config = RunConfig(max_workers=3, timeout=180)
+    # CI 环境（GitHub Actions 在美国）到 DeepSeek（国内）延迟高，
+    # 自动降为单 worker + 5 分钟超时，避免跨国网络超时雪崩
+    is_ci = os.getenv("GITHUB_ACTIONS") == "true"
+    max_w = 1 if is_ci else 3
+    timeout_s = 300 if is_ci else 180
+    if is_ci:
+        print("[CI 检测] 已启用单 worker 模式，避免跨国超时")
+    run_config = RunConfig(max_workers=max_w, timeout=timeout_s)
 
     print("\n[RAGAS] 开始评估...")
     result = evaluate(
