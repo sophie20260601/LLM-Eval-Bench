@@ -1,0 +1,71 @@
+name: LLM-Eval-Bench CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:          # 手动触发完整评估
+    inputs:
+      run_full_eval:
+        description: 'Run full evaluation (requires DEEPSEEK_API_KEY)'
+        type: boolean
+        default: false
+
+jobs:
+  # ── 自动触发：数据 + 环境验证（无需 API Key）──
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Validate test data
+        run: |
+          python -c "
+          import json, os
+          path = 'data/test_cases.json'
+          assert os.path.exists(path), f'{path} not found'
+          with open(path, 'r', encoding='utf-8') as f:
+              cases = json.load(f)
+          assert len(cases) == 30, f'Expected 30, got {len(cases)}'
+          for i, c in enumerate(cases):
+              assert 'question' in c, f'case {i}: missing question'
+              assert 'ground_truth' in c, f'case {i}: missing ground_truth'
+          print(f'OK: {len(cases)} test cases validated')
+          "
+
+      - name: Validate imports
+        run: |
+          python -c "
+          from src.llm_client import get_deepseek_llm, generate_answer
+          from src.evaluator import get_embeddings, run_evaluation
+          print('OK: all modules imported')
+          "
+
+  # ── 手动触发：完整评估（需配置 DEEPSEEK_API_KEY Secret）──
+  full-eval:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_full_eval }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install ragas datasets langchain langchain-openai langchain-community modelscope sentence-transformers numpy pandas python-dotenv
+
+      - name: Run full evaluation
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: python main.py
