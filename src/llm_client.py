@@ -21,6 +21,10 @@ class DeepSeekChatOpenAI(ChatOpenAI):
         kwargs["n"] = 1
         return super()._generate(messages, stop=stop, run_manager=run_manager, **kwargs)
 
+    async def _agenerate(self, messages, stop=None, run_manager=None, **kwargs):
+        kwargs["n"] = 1
+        return await super()._agenerate(messages, stop=stop, run_manager=run_manager, **kwargs)
+
 
 def get_deepseek_llm(temperature: float = 0.1, timeout: int = 30) -> DeepSeekChatOpenAI:
     """
